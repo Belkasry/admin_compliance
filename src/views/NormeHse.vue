@@ -63,7 +63,6 @@
           </v-toolbar-items>
         </v-toolbar>
         <v-card-text>
-          {{ newNorme }}
           <v-row>
             <v-col cols="12" md="6">
               <v-autocomplete

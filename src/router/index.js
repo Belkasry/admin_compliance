@@ -18,8 +18,13 @@ const routes = [
       },
       {
         path: 'text',
-        name: 'Text',
+        name: 'Texts',
         component: () => import( '@/views/TextHse.vue'),
+      },
+      {
+        path: 'text/:id',
+        name: 'textOne',
+        component: () => import( '@/views/TextView.vue'),
       },
       {
         path: 'article',

@@ -143,12 +143,15 @@
                 </v-autocomplete>
               </v-col>
               <v-col cols="12" md="6">
-                <v-switch v-model="newText.has_annexe" label="Has Annexe"></v-switch>
                 <v-switch v-model="newText.is_digital" label="Is Digital"></v-switch>
                 <v-switch v-model="newText.has_schema" label="Has Schema"></v-switch>
               </v-col>
               <v-col cols="12" md="6">
                 <v-textarea variant="outlined" v-model="newText.important" label="Important"></v-textarea>
+              </v-col>
+              <v-col cols="12" md="12">
+                <v-switch v-model="newText.has_annexe" label="Has Annexe"></v-switch>
+                <v-file-input variant="outlined" v-model="annexe" label="Fichier BO Fr"></v-file-input>
               </v-col>
               <v-col cols="12" md="6">
                 <br>
@@ -173,17 +176,19 @@
         <v-toolbar color="black">
           <v-toolbar-title>Texts</v-toolbar-title>
           <v-spacer></v-spacer>
-          <v-text-field variant="outlined"
-                        v-model="search"
-                        append-inner-icon="mdi-magnify"
-                        label="Search"
-                        single-line
-                        hide-details
+          <v-text-field
+            variant="underlined"
+            v-model="search"
+            append-inner-icon="mdi-magnify"
+            label="Search"
+            single-line
+            class="mx-2 mt-1"
           ></v-text-field>
           <v-btn color="primary" dark @click="openDialog">Add Text</v-btn>
         </v-toolbar>
       </template>
       <template v-slot:[`item.actions`]="{ item }">
+        <v-icon small class="mr-2" @click="showText(item.raw.id)">mdi-eye</v-icon>
         <v-icon small class="mr-2" @click="deleteText(item.raw.id)">mdi-delete</v-icon>
       </template>
     </v-data-table>
@@ -192,16 +197,15 @@
 
 <script>
 import axios from 'axios';
-import {enable} from "core-js/internals/internal-metadata";
 
 export default {
   data() {
     return {
       bulletins: [],
-      domains:[],
-      scopes:[],
-      list_status_disklosure: [ ],
-      list_status_text: [ ],
+      domains: [],
+      scopes: [],
+      list_status_disklosure: [],
+      list_status_text: [],
       list_nature_text: [],
       bulletin_select: true,
       panel_bo: true,
@@ -234,7 +238,9 @@ export default {
         is_digital: null,
         has_schema: null,
         important: null,
+        annexe: null,
       },
+      annexe: null,
       newBoFr: {
         num_bo: null,
         lang: "fr",
@@ -265,21 +271,51 @@ export default {
     this.fetchBo();
   },
   methods: {
+    showText(id) {
+      this.$router.push({name: 'textOne', params: {id}});
+    },
     async fetchValRefs() {
       const response = await axios.get('/api/valref');
       this.val_refs = response.data;
-      this.list_status_text=this.val_refs?.status_text
-      this.list_status_disklosure=this.val_refs?.status_disklosure_text
-      this.list_nature_text=this.val_refs?.nature_text
+      this.list_status_text = this.val_refs?.status_text
+      this.list_status_disklosure = this.val_refs?.status_disklosure_text
+      this.list_nature_text = this.val_refs?.nature_text
     },
     async saveBulletin() {
-      const data = {
-        bulletins: []
+
+      const bulletins = [];
+      if (this.newBoFr.num_bo) bulletins.push(this.newBoFr)
+      if (this.newBoAr.num_bo) bulletins.push(this.newBoAr)
+
+      const data = new FormData();
+      data.append('bulletins', JSON.stringify(bulletins));
+
+
+      if (this.document_fr) {
+        let filesArray_fr = Array.isArray(this.document_fr)
+          ? this.document_fr
+          : [this.document_fr];
+        Array.from(filesArray_fr).forEach((file) => {
+          data.append("document_fr", file);
+        });
       }
-      if (this.newBoFr.num_bo) data.bulletins.push(this.newBoFr)
-      if (this.newBoAr.num_bo) data.bulletins.push(this.newBoAr)
+
+      if (this.document_ar) {
+        let filesArray_ar = Array.isArray(this.document_ar)
+          ? this.document_ar
+          : [this.document_ar];
+        Array.from(filesArray_ar).forEach((file) => {
+          data.append("document_ar", file);
+        });
+      }
+
+
       await axios
-        .post('/api/bulletins_fr_ar', data)
+        .post('/api/bulletins_fr_ar', data, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        })
         .then((response) => {
           this.newBoFr = {
             num_bo: null,
@@ -328,7 +364,6 @@ export default {
           console.error(error);
         });
     },
-    enable,
     loadTexts() {
       this.loading = true;
       axios
@@ -377,8 +412,44 @@ export default {
       this.dialogVisible = false;
     },
     async saveText() {
-     await axios
-        .post('/api/texts', this.newText)
+      const formData = new FormData();
+
+      formData.append('num_text', this.newText.num_text);
+      formData.append('written_at', this.newText.written_at);
+      formData.append('bo_id', this.newText.bo_id);
+      formData.append('remarque', this.newText.remarque);
+      formData.append('status_disklosure', this.newText.status_disklosure);
+      formData.append('intitule', this.newText.intitule);
+      formData.append('intitule_ar', this.newText.intitule_ar);
+      formData.append('intitule_fr', this.newText.intitule_fr);
+      formData.append('page_ar', this.newText.page_ar);
+      formData.append('page_fr', this.newText.page_fr);
+      formData.append('nature', this.newText.nature);
+      formData.append('status', this.newText.status);
+      formData.append('domain_id', this.newText.domain_id);
+      formData.append('scope_id', this.newText.scope_id);
+      formData.append('has_annexe', Boolean(this.newText.has_annexe));
+      formData.append('is_digital', Boolean(this.newText.is_digital));
+      formData.append('has_schema', Boolean(this.newText.has_schema));
+      formData.append('important', this.newText.important);
+
+
+      if (this.annexe) {
+        let filesArray_fr = Array.isArray(this.annexe)
+          ? this.annexe
+          : [this.annexe];
+        Array.from(filesArray_fr).forEach((file) => {
+          formData.append("annexe", file);
+        });
+      }
+
+      await axios
+        .post('/api/texts',
+          formData, {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          })
         .then((response) => {
           console.log(response.data)
           this.loadTexts();
@@ -388,6 +459,7 @@ export default {
           console.error(error);
         });
     },
+
   },
 };
 </script>
